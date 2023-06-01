@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Input, Checkbox, Collapse } from "antd";
+import { Input, Checkbox, Collapse, Button } from "antd";
 import {
   addTaskService,
   addSubtaskService,
@@ -9,6 +9,7 @@ import {
   updateBatchSubtaskService,
 } from "./todo.service";
 import { SubtaskInput, TaskInput } from "./api.interface";
+import "./App.css";
 
 const { Panel } = Collapse;
 
@@ -73,7 +74,8 @@ const TodoApp: React.FC = () => {
       ...updatedTasks[taskIndex].subtasks,
       resultNewSubtask,
     ];
-    updatedTasks[taskIndex].status = STATUS.PENDING;
+    const newTask = await updateTaskService(taskId, { status: STATUS.PENDING });
+    updatedTasks[taskIndex].status = newTask.attributes.status;
     setTasks(updatedTasks);
     setNewSubtaskText("");
   };
@@ -95,7 +97,7 @@ const TodoApp: React.FC = () => {
       batchIds,
       data: { status: taskStatus },
     });
-    updatedTasks[taskIndex].subtasks = [...subtasks]
+    updatedTasks[taskIndex].subtasks = [...subtasks];
     setTasks(updatedTasks);
   };
 
@@ -132,22 +134,26 @@ const TodoApp: React.FC = () => {
   };
 
   return (
-    <div>
-      <Input
-        value={newTaskText}
-        onChange={(e) => setNewTaskText(e.target.value)}
-        onPressEnter={addTask}
-        placeholder="Add a task..."
-      />
-      <button onClick={addTask}>Add a Task</button>
+    <div className="wrapper-container">
+      <div className="wrapper-input-task">
+        <Input
+          className="input-task"
+          value={newTaskText}
+          onChange={(e) => setNewTaskText(e.target.value)}
+          onPressEnter={addTask}
+          placeholder="Add a task..."
+        />
+        <Button onClick={addTask}>Add a Task</Button>
+      </div>
+
       <br />
       <br />
-      <Collapse>
+      <Collapse className="wrapper-collapse">
         {tasks.map((task) => (
           <Panel
             key={task.id}
             header={
-              <div>
+              <div className="wrapper-collapse-header">
                 <Checkbox
                   checked={task.status === STATUS.COMPLETE}
                   onChange={() => toggleTask(task.id)}
@@ -176,13 +182,13 @@ const TodoApp: React.FC = () => {
                   </Checkbox>
                 </li>
               ))}
-              <li>
+              <li className="wrapper-input-subtask">
                 <Input
-                  value={newSubtaskText}
+                  className="input-subtask"
                   onChange={(e) => setNewSubtaskText(e.target.value)}
                   placeholder="Add a subtask..."
                 />
-                <button onClick={() => addSubtask(task.id)}>Add Subtask</button>
+                <Button onClick={() => addSubtask(task.id)}>Add Subtask</Button>
               </li>
             </ul>
           </Panel>
