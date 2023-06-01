@@ -8,9 +8,9 @@ import {
 } from "./api.interface";
 import { Subtask, Task } from "./App";
 const HOST = "http://localhost:3001";
-export const getTasksService = async () => {
+export const getTasksService = async (): Promise<Task[]> => {
   const res = await axios.get(`${HOST}/api/v1/todos`);
-  const taskList = res.data.data.map((i: TaskResponse) => {
+  const taskList: Task[] = res.data.data.map((i: TaskResponse) => {
     return {
       id: i.id,
       ...i.attributes,
@@ -26,7 +26,7 @@ export const getTasksService = async () => {
   return taskList;
 };
 
-export const addTaskService = async (newTask: TaskInput) => {
+export const addTaskService = async (newTask: TaskInput): Promise<Task> => {
   const res = await axios.post(`${HOST}/api/v1/todos`, newTask);
   const { id, attributes }: TaskResponse = res.data.data;
   const task: Task = {
@@ -37,7 +37,7 @@ export const addTaskService = async (newTask: TaskInput) => {
   return task;
 };
 
-export const addSubtaskService = async (newTask: SubtaskInput) => {
+export const addSubtaskService = async (newTask: SubtaskInput): Promise<Subtask> => {
   const res = await axios.post(`${HOST}/api/v1/subtasks`, newTask);
   const { id, attributes }: SubtaskData = res.data.data;
   const subtask: Subtask = {
@@ -51,7 +51,7 @@ export const addSubtaskService = async (newTask: SubtaskInput) => {
 export const updateSubtaskService = async (
   subtaskId: string,
   newData: SubtaskInput
-) => {
+): Promise<Subtask> => {
   const res = await axios.patch(
     `${HOST}/api/v1/subtasks/${subtaskId}`,
     newData
@@ -65,7 +65,7 @@ export const updateSubtaskService = async (
   return subtask;
 };
 
-export const updateBatchSubtaskService = async (newData: BatchSubtaskInput) => {
+export const updateBatchSubtaskService = async (newData: BatchSubtaskInput): Promise<Subtask[]> => {
   const res = await axios.patch(
     `${HOST}/api/v1/subtasks/update-batch`,
     newData
