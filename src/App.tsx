@@ -1,7 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { Input, Checkbox, Collapse } from "antd";
-import axios from "axios";
-import { TaskResponse } from "./api.interface";
+import {
+  addTaskService,
+  addSubtaskService,
+  getTasksService,
+  updateSubtaskService,
+  updateTaskService,
+  updateBatchSubtaskService,
+} from "./todo.service";
+import { SubtaskInput, TaskInput } from "./api.interface";
 
 const { Panel } = Collapse;
 
@@ -9,33 +16,20 @@ enum STATUS {
   PENDING = "pending",
   COMPLETE = "complete",
 }
-interface SubtaskInput {
-  id?: string;
-  text?: string;
-  status?: string;
-  todoId?: string;
-}
 
-interface TaskInput {
-  id?: string;
-  text?: string;
-  status?: STATUS;
-  subtasks?: Subtask[];
-}
-
-interface Subtask {
+export interface Subtask {
   id: string;
   title: string;
   status: string;
   todoId: string;
-  createAt: string
+  createAt: string;
 }
 
-interface Task {
+export interface Task {
   id: string;
   title: string;
   status: string;
-  createAt: string
+  createAt: string;
   subtasks: Subtask[];
 }
 
@@ -49,62 +43,17 @@ const TodoApp: React.FC = () => {
   }, []);
 
   const getTasks = async () => {
-    const res = await axios.get("http://localhost:3001/api/v1/todos");
-    const taskList = res.data.data.map((i: TaskResponse) => {
-      return {
-        id: i.id,
-        ...i.attributes,
-        subtasks: i.relationships.subtask.data.map((e) => {
-          return {
-            id: e.id,
-            ...e.attributes,
-            todoId: e.attributes.todoId.toString()
-          };
-        }),
-      };
-    });
+    const taskList = await getTasksService();
     setTasks(taskList);
   };
-
-  const addTaskService = async (newTask: TaskInput) => {
-    const res = await axios.post("http://localhost:3001/api/v1/todos", newTask);
-    const taskList = res.data.data.map((i: TaskResponse) => {
-      return {
-        id: i.id,
-        ...i.attributes,
-        subtasks: i.relationships.subtask.data.map((e) => {
-          return {
-            id: e.id,
-            ...e.attributes,
-          };
-        }),
-      };
-    });
-    const { id, relationships, attributes }: TaskResponse = res.data.data;
-    const task: Task = {
-      id,
-      ...attributes,
-      subtasks: relationships.subtask.data.map((e) => {
-        const { id, attributes } = e;
-        return {
-          id,
-          ...attributes,
-          todoId: e.attributes.todoId.toString()
-        };
-      }),
-    };
-    console.log({ task });
-    setTasks([...tasks, task]);
-  };
-
   const addTask = async () => {
     if (newTaskText.trim() === "") return;
 
     const newTask: TaskInput = {
-      text: newTaskText,
+      title: newTaskText,
     };
-    // :TODO call api create task
-    // setTasks((prevTasks) => [...prevTasks, newTask]);
+    const resultNewTask = await addTaskService(newTask);
+    setTasks((prevTasks) => [...prevTasks, resultNewTask]);
     setNewTaskText("");
   };
 
@@ -113,40 +62,44 @@ const TodoApp: React.FC = () => {
     if (taskIndex === -1) return;
 
     const newSubtask: SubtaskInput = {
-      text: newSubtaskText,
+      title: newSubtaskText,
       todoId: taskId,
     };
 
-    const updatedTasks = [...tasks];
+    const resultNewSubtask = await addSubtaskService(newSubtask);
 
-    // :TODO call api create subtask
-    // updatedTasks[taskIndex].subtasks = [...updatedTasks[taskIndex].subtasks, newSubtask];
+    const updatedTasks = [...tasks];
+    updatedTasks[taskIndex].subtasks = [
+      ...updatedTasks[taskIndex].subtasks,
+      resultNewSubtask,
+    ];
     updatedTasks[taskIndex].status = STATUS.PENDING;
     setTasks(updatedTasks);
     setNewSubtaskText("");
   };
 
-  const toggleTask = (taskId: string) => {
+  const toggleTask = async (taskId: string) => {
     const taskIndex = tasks.findIndex((task) => task.id === taskId);
     if (taskIndex === -1) return;
 
     const updatedTasks = [...tasks];
-    updatedTasks[taskIndex].status =
+    const taskStatus =
       updatedTasks[taskIndex].status === STATUS.PENDING
         ? STATUS.COMPLETE
         : STATUS.PENDING;
+    const newTask = await updateTaskService(taskId, { status: taskStatus });
+    updatedTasks[taskIndex].status = newTask.attributes.status;
 
-    if (updatedTasks[taskIndex].status === STATUS.COMPLETE) {
-      const batchIds = updatedTasks[taskIndex].subtasks.map((i) =>
-        Number(i.id)
-      );
-      // TODO: call api batch update status subtasks
-    }
-
+    const batchIds = updatedTasks[taskIndex].subtasks.map((i) => Number(i.id));
+    const subtasks = await updateBatchSubtaskService({
+      batchIds,
+      data: { status: taskStatus },
+    });
+    updatedTasks[taskIndex].subtasks = [...subtasks]
     setTasks(updatedTasks);
   };
 
-  const toggleSubtask = (taskId: string, subtaskId: string) => {
+  const toggleSubtask = async (taskId: string, subtaskId: string) => {
     const taskIndex = tasks.findIndex((task) => task.id === taskId);
     if (taskIndex === -1) return;
 
@@ -156,20 +109,25 @@ const TodoApp: React.FC = () => {
     if (subtaskIndex === -1) return;
 
     const updatedTasks = [...tasks];
-    const subtask = updatedTasks[taskIndex].subtasks[subtaskIndex];
-    subtask.status =
-      subtask.status === STATUS.PENDING ? STATUS.COMPLETE : STATUS.PENDING;
 
-    if (subtask.status === STATUS.PENDING) {
+    const subtask = updatedTasks[taskIndex].subtasks[subtaskIndex];
+    const updateStatus =
+      subtask.status === STATUS.PENDING ? STATUS.COMPLETE : STATUS.PENDING;
+    const resultSubtask = await updateSubtaskService(subtaskId, {
+      status: updateStatus,
+    });
+    if (resultSubtask.status === STATUS.PENDING) {
       updatedTasks[taskIndex].status = STATUS.PENDING;
     }
-
-    updatedTasks[taskIndex].status = updatedTasks[taskIndex].subtasks.every(
+    updatedTasks[taskIndex].subtasks[subtaskIndex] = resultSubtask;
+    const taskStatus = updatedTasks[taskIndex].subtasks.every(
       (i) => i.status === STATUS.COMPLETE
     )
       ? STATUS.COMPLETE
       : STATUS.PENDING;
-
+    const newData = { status: taskStatus };
+    const newTask = await updateTaskService(taskId, newData);
+    updatedTasks[taskIndex].status = newTask.attributes.status;
     setTasks(updatedTasks);
   };
 

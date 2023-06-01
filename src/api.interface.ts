@@ -31,3 +31,22 @@ export interface TaskResponse {
     status: string
     todoId: number
   }
+
+  export interface SubtaskInput {
+    id?: string;
+    title?: string;
+    status?: string;
+    todoId?: string;
+  }
+
+  export interface BatchSubtaskInput {
+    batchIds: number[];
+    data: SubtaskInput;
+  }
+  
+  export interface TaskInput {
+    id?: string;
+    title?: string;
+    status?: string;
+    subtasks?: Subtask[];
+  }
